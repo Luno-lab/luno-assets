@@ -1,0 +1,15 @@
+{
+  "name": "luno-assets",
+  "version": "1.0.0",
+  "description": "Asset management for LunoKit",
+  "main": "index.js",
+  "scripts": {
+    "format": "node scripts/format.js",
+    "verify": "node scripts/verify.js"
+  },
+  "dependencies": {
+    "sharp": "^0.33.2",
+    "potrace": "^2.1.8",
+    "svgo": "^3.2.0"
+  }
+}
