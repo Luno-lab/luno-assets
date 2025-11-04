@@ -3,7 +3,6 @@
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
-const { optimize } = require('svgo');
 
 const sourcesDir = path.join(__dirname, '../sources');
 const assetsDir = path.join(__dirname, '../assets');
@@ -11,7 +10,7 @@ const assetsDir = path.join(__dirname, '../assets');
 const stats = {
   totalFiles: 0,
   processedFiles: 0,
-  copiedSvgFiles: 0,
+  copiedWebpFiles: 0,
   convertedFiles: 0,
   errorFiles: 0,
   startTime: Date.now()
@@ -37,65 +36,26 @@ function updateProgressBar() {
   process.stdout.write(`\r[${filled}>${empty}] ${percentage}% | ${stats.processedFiles}/${stats.totalFiles} files`);
 }
 
-async function imageToSvg(inputPath) {
-  const metadata = await sharp(inputPath).metadata();
-  const { width, height } = metadata;
-
-  const imageBuffer = await fs.promises.readFile(inputPath);
-  const base64Image = imageBuffer.toString('base64');
-
-  const ext = path.extname(inputPath).toLowerCase();
-  let mimeType;
-  switch (ext) {
-    case '.png':
-      mimeType = 'image/png';
-      break;
-    case '.jpg':
-    case '.jpeg':
-      mimeType = 'image/jpeg';
-      break;
-    case '.webp':
-      mimeType = 'image/webp';
-      break;
-    default:
-      mimeType = 'image/png';
-  }
-
-  const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-  <image width="${width}" height="${height}" xlink:href="data:${mimeType};base64,${base64Image}"/>
-</svg>`;
-
-  const optimizedSvg = optimize(svgContent, {
-    multipass: true,
-    plugins: [
-      'preset-default',
-      {
-        name: 'removeViewBox',
-        active: false
-      }
-    ]
-  });
-
-  return optimizedSvg.data;
-}
-
 async function processImageFile(sourcePath, targetPath) {
   const ext = path.extname(sourcePath).toLowerCase();
   const baseName = path.basename(sourcePath, ext);
-  const targetSvgPath = path.join(path.dirname(targetPath), `${baseName}.svg`);
+  const targetWebpPath = path.join(path.dirname(targetPath), `${baseName}.webp`);
 
   try {
-    if (ext === '.svg') {
-      const svgContent = fs.readFileSync(sourcePath, 'utf8');
-      const optimizedSvg = optimize(svgContent, {
-        multipass: true,
-        plugins: ['preset-default']
-      });
-      fs.writeFileSync(targetSvgPath, optimizedSvg.data);
-      stats.copiedSvgFiles++;
+    if (ext === '.webp') {
+      // If already webp, just copy it
+      fs.copyFileSync(sourcePath, targetPath);
+      stats.copiedWebpFiles++;
     } else {
-      const svgContent = await imageToSvg(sourcePath);
-      fs.writeFileSync(targetSvgPath, svgContent);
+      // Convert to webp with high quality
+      await sharp(sourcePath)
+        .webp({
+          quality: 95,         // High quality (0-100)
+          lossless: false,     // Use lossy compression for smaller files
+          effort: 6,           // Compression effort (0-6), higher = better compression but slower
+          smartSubsample: true // Better chroma subsampling
+        })
+        .toFile(targetWebpPath);
       stats.convertedFiles++;
     }
 
@@ -161,8 +121,8 @@ function printSummary() {
 
   console.log('\n\n=== Processing Summary ===');
   console.log(`Total files processed: ${stats.processedFiles}`);
-  console.log(`SVG files optimized: ${stats.copiedSvgFiles}`);
-  console.log(`Files converted to SVG: ${stats.convertedFiles}`);
+  console.log(`WebP files copied: ${stats.copiedWebpFiles}`);
+  console.log(`Files converted to WebP: ${stats.convertedFiles}`);
   console.log(`Files with errors: ${stats.errorFiles}`);
   console.log(`Time taken: ${duration.toFixed(2)} seconds`);
   console.log('========================');

@@ -1,12 +1,12 @@
 # LunoKit Assets
 
-This repository contains SVG assets for the LunoKit project.
+This repository contains WebP assets for the LunoKit project.
 
 ## Directory Structure
 
-- `assets/`: Contains processed SVG assets ready for use
-  - `tokens/`: Token icons in SVG format
-  - (future) `chains/`: Chain icons in SVG format
+- `assets/`: Contains processed WebP assets ready for use
+  - `tokens/`: Token icons in WebP format
+  - (future) `chains/`: Chain icons in WebP format
 - `sources/`: Contains source files in various formats
   - `tokens/`: Source token icons (PNG, WebP, SVG, etc.)
   - (future) `chains/`: Source chain icons
@@ -16,7 +16,7 @@ This repository contains SVG assets for the LunoKit project.
 1. Clone this repository
 2. Install dependencies with `pnpm install`
 3. Add source files to the appropriate directory in `sources/`
-4. Run `pnpm run format` to generate SVG assets
+4. Run `pnpm run format` to generate WebP assets
 5. Run `pnpm run verify` to ensure all assets are valid
 6. Create a pull request
 
@@ -24,7 +24,7 @@ This repository contains SVG assets for the LunoKit project.
 
 ### Format Assets
 
-Convert source files to SVG format and place them in the assets directory:
+Convert source files to WebP format and place them in the assets directory:
 
 ```bash
 pnpm run format
@@ -32,13 +32,13 @@ pnpm run format
 
 This command:
 - Processes all files in the `sources/` directory
-- Copies SVG files directly to the `assets/` directory
-- Converts other image formats (PNG, JPG, WebP) to SVG placeholders
+- Copies WebP files directly to the `assets/` directory
+- Converts other image formats (PNG, JPG, SVG) to high-quality WebP
 - Maintains the same directory structure
 
 ### Verify Assets
 
-Check if all files in the assets directory are valid SVG files:
+Check if all files in the assets directory are valid WebP files:
 
 ```bash
 pnpm run verify
@@ -46,6 +46,6 @@ pnpm run verify
 
 This command:
 - Scans all files in the `assets/` directory
-- Verifies that all files have .svg extension
-- Checks if SVG files contain basic SVG tags
+- Verifies that all files have .webp extension
+- Checks if WebP files are valid using sharp
 - Provides a summary report

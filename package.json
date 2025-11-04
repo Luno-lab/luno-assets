@@ -9,7 +9,6 @@
     "verify": "node scripts/verify.js"
   },
   "dependencies": {
-    "sharp": "^0.33.2",
-    "svgo": "^3.2.0"
+    "sharp": "^0.33.5"
   }
 }
