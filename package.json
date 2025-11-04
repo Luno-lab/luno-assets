@@ -2,6 +2,7 @@
   "name": "luno-assets",
   "version": "1.0.0",
   "description": "Asset management for LunoKit",
+  "packageManager": "pnpm@8.15.4",
   "main": "index.js",
   "scripts": {
     "format": "node scripts/format.js",
