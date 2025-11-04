@@ -2,6 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const sharp = require('sharp');
+const { optimize } = require('svgo');
 
 const sourcesDir = path.join(__dirname, '../sources');
 const assetsDir = path.join(__dirname, '../assets');
@@ -23,13 +25,6 @@ function ensureDirectoryExists(directory) {
   }
 }
 
-function createPlaceholderSVG(width = 100, height = 100, name = '') {
-  return `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-    <rect width="100%" height="100%" fill="#f0f0f0"/>
-    <text x="50%" y="50%" font-family="Arial" font-size="14" text-anchor="middle" dominant-baseline="middle">${name}</text>
-  </svg>`;
-}
-
 function updateProgressBar() {
   const progress = stats.processedFiles / stats.totalFiles;
   const filledLength = Math.floor(progressBarLength * progress);
@@ -42,17 +37,64 @@ function updateProgressBar() {
   process.stdout.write(`\r[${filled}>${empty}] ${percentage}% | ${stats.processedFiles}/${stats.totalFiles} files`);
 }
 
-function processImageFile(sourcePath, targetPath) {
+async function imageToSvg(inputPath) {
+  const metadata = await sharp(inputPath).metadata();
+  const { width, height } = metadata;
+
+  const imageBuffer = await fs.promises.readFile(inputPath);
+  const base64Image = imageBuffer.toString('base64');
+
+  const ext = path.extname(inputPath).toLowerCase();
+  let mimeType;
+  switch (ext) {
+    case '.png':
+      mimeType = 'image/png';
+      break;
+    case '.jpg':
+    case '.jpeg':
+      mimeType = 'image/jpeg';
+      break;
+    case '.webp':
+      mimeType = 'image/webp';
+      break;
+    default:
+      mimeType = 'image/png';
+  }
+
+  const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <image width="${width}" height="${height}" xlink:href="data:${mimeType};base64,${base64Image}"/>
+</svg>`;
+
+  const optimizedSvg = optimize(svgContent, {
+    multipass: true,
+    plugins: [
+      'preset-default',
+      {
+        name: 'removeViewBox',
+        active: false
+      }
+    ]
+  });
+
+  return optimizedSvg.data;
+}
+
+async function processImageFile(sourcePath, targetPath) {
   const ext = path.extname(sourcePath).toLowerCase();
   const baseName = path.basename(sourcePath, ext);
   const targetSvgPath = path.join(path.dirname(targetPath), `${baseName}.svg`);
 
   try {
     if (ext === '.svg') {
-      fs.copyFileSync(sourcePath, targetPath);
+      const svgContent = fs.readFileSync(sourcePath, 'utf8');
+      const optimizedSvg = optimize(svgContent, {
+        multipass: true,
+        plugins: ['preset-default']
+      });
+      fs.writeFileSync(targetSvgPath, optimizedSvg.data);
       stats.copiedSvgFiles++;
     } else {
-      const svgContent = createPlaceholderSVG(100, 100, baseName);
+      const svgContent = await imageToSvg(sourcePath);
       fs.writeFileSync(targetSvgPath, svgContent);
       stats.convertedFiles++;
     }
@@ -91,7 +133,7 @@ function countImageFiles(directory) {
   return count;
 }
 
-function processDirectory(sourceSubDir, targetSubDir) {
+async function processDirectory(sourceSubDir, targetSubDir) {
   const sourcePath = path.join(sourcesDir, sourceSubDir);
   const targetPath = path.join(assetsDir, targetSubDir);
 
@@ -104,11 +146,11 @@ function processDirectory(sourceSubDir, targetSubDir) {
     const targetItemPath = path.join(targetPath, item);
 
     if (fs.statSync(sourceItemPath).isDirectory()) {
-      processDirectory(path.join(sourceSubDir, item), path.join(targetSubDir, item));
+      await processDirectory(path.join(sourceSubDir, item), path.join(targetSubDir, item));
     } else {
       const ext = path.extname(item).toLowerCase();
       if (['.png', '.jpg', '.jpeg', '.webp', '.svg'].includes(ext)) {
-        processImageFile(sourceItemPath, targetItemPath);
+        await processImageFile(sourceItemPath, targetItemPath);
       }
     }
   }
@@ -119,14 +161,14 @@ function printSummary() {
 
   console.log('\n\n=== Processing Summary ===');
   console.log(`Total files processed: ${stats.processedFiles}`);
-  console.log(`SVG files copied: ${stats.copiedSvgFiles}`);
+  console.log(`SVG files optimized: ${stats.copiedSvgFiles}`);
   console.log(`Files converted to SVG: ${stats.convertedFiles}`);
   console.log(`Files with errors: ${stats.errorFiles}`);
   console.log(`Time taken: ${duration.toFixed(2)} seconds`);
   console.log('========================');
 }
 
-function main() {
+async function main() {
   try {
     console.log('Scanning source directories...');
 
@@ -139,7 +181,7 @@ function main() {
     console.log('Starting conversion process...\n');
 
     for (const subDir of sourcesSubDirs) {
-      processDirectory(subDir, subDir);
+      await processDirectory(subDir, subDir);
     }
 
     printSummary();
@@ -149,4 +191,7 @@ function main() {
   }
 }
 
-main();
+main().catch(error => {
+  console.error(`\nUnhandled error: ${error.message}`);
+  process.exit(1);
+});
